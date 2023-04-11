@@ -95,7 +95,7 @@ export default function SignUp() {
             setErrorMessage("Error in Email and/or Password");
           }
           console.log(data);
-          navigate("/login");
+          navigate("/");
         }
       );
     }

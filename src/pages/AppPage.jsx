@@ -208,6 +208,8 @@ export default function AppPage() {
       /> */}
 
       {showSentiment && (
+        <div>
+          <label htmlFor="sentiment-text">Confidence Score:</label>
         <VictoryChart
           width={200}
           height={150}
@@ -236,7 +238,8 @@ export default function AppPage() {
             labels={({ datum }) => `${datum.x}: ${datum.y}`}
             labelComponent={<VictoryLabel style={{ fontSize: 5 }} />}
           />
-        </VictoryChart>
+          </VictoryChart>
+          </div>
       )}
     </div>
   );

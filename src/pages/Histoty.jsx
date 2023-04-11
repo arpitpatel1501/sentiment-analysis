@@ -143,7 +143,7 @@ export default function History() {
         historyData["data"]["body"]["Items"].map((data) => (
           // backgroundColor: '#'+Math.floor(Math.random() * 16777215).toString(16)
             <div>
-          <Paper elevation={3} style={{ margin: "16px 0px" }}>
+            <Paper  borderRadius='20px' borderColor="#000" elevation={9} style={{ margin: "16px 0px" }}>
             
             <div className="sentiment">
               <div className="form-group">
@@ -168,7 +168,9 @@ export default function History() {
                 />
               </div>
             </div>
-            <Divider />
+              <Divider />
+              
+          <label htmlFor="sentiment-text">Confidence Score:</label>
             <VictoryChart
               width={200}
               height={150}
@@ -213,7 +215,9 @@ export default function History() {
             </VictoryChart>
            
             </Paper>
-                <Divider background="#887699"/>
+            <Grid>
+              
+                </Grid>
                 </div>
             
         ))}
