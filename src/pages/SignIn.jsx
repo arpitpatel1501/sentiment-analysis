@@ -167,7 +167,7 @@ export default function SignIn() {
             <LockOutlinedIcon />
           </Avatar>
           <Typography component="h1" variant="h5">
-            Sign in {process.env.REACT_APP_API_LINK}
+           Sign in {process.env.REACT_APP_API_LINK} {process.env.REACT_APP_NAME }
           </Typography>
           <Box
             component="form"
@@ -175,6 +175,7 @@ export default function SignIn() {
             noValidate
             sx={{ mt: 1 }}
           >
+             {console.log(process.env) }
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
