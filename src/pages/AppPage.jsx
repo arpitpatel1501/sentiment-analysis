@@ -29,11 +29,12 @@ export default function AppPage() {
   // const [sentimentScore, setSentimentScore] = useState("");
   const [showSentiment, setShowSentiment] = useState(false);
   const [value, setValue] = useState("");
-
+  const [message, setMessage] = useState("");
   const email = localStorage.getItem("email");
 
   const handleAnalyzeClick = () => {
 
+    setMessage("Loading...");
     // Get the user input
     // const text = document.getElementById("input-text").value;
     const data_json = { email: email, text: value };
@@ -68,6 +69,7 @@ export default function AppPage() {
         setSentimentText(sentiment);
         // setSentimentScore(res.data.SentimentScore.sentiment);
         setShowSentiment(true);
+        setMessage("");
 
       })
       .catch((err) => {
@@ -87,7 +89,7 @@ export default function AppPage() {
   function handleLogOut() {
     const user = cognitoUserPool.getCurrentUser();
     user.signOut();
-    window.location.href = '/';
+    window.location.href = '/';
   }
 
   return (
@@ -228,6 +230,11 @@ export default function AppPage() {
             labelComponent={<VictoryLabel style={{ fontSize: 5 }} />}
           />
           </VictoryChart>
+          </div>
+      )}
+      {!showSentiment && (
+        <div align="center">
+          <h2>{message}</h2>
           </div>
       )}
     </div>
