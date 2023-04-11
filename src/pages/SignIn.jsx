@@ -5,8 +5,6 @@ import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import CssBaseline from "@mui/material/CssBaseline";
 import TextField from "@mui/material/TextField";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
 import Link from "@mui/material/Link";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
@@ -15,38 +13,16 @@ import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
-import { Snackbar } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import MuiAlert from "@mui/material/Alert";
 import { IconButton } from "@mui/material";
 import { CognitoUser, AuthenticationDetails } from "amazon-cognito-identity-js";
 
 import cognitoUserPool from "../cognitoUserPool";
 
-function Copyright(props) {
-  return (
-    <Typography
-      variant="body2"
-      color="text.secondary"
-      align="center"
-      {...props}
-    >
-      {"Copyright © "}
-      <Link color="inherit" href="https://mui.com/">
-        Your Website
-      </Link>{" "}
-      {new Date().getFullYear()}
-      {"."}
-    </Typography>
-  );
-}
 
 const theme = createTheme();
 
-const Alert = React.forwardRef(function Alert(props, ref) {
-  return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
-});
 
 export default function SignIn() {
   const emailValidation = /^[ ]*([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})[ ]*$/i;
@@ -56,8 +32,6 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
   const [emailError, setEmailError] = useState(false);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [registrationError, setRegistrationError] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = (event) => {
@@ -90,12 +64,6 @@ export default function SignIn() {
           navigate("/home");
         },
         onFailure: (err) => {
-          console.log(err);
-          console.log(typeof err);
-          console.log(Object.keys(err));
-          console.log(err.name);
-          console.log(err.code);
-          console.log(Object.values(err));
           setErrorMessage("Incorrect username or password");
           if (err.name === "UserNotConfirmedException") {
             setErrorMessage("Please confirm your email");
@@ -109,9 +77,6 @@ export default function SignIn() {
     }
   };
 
-  const handleCloseSnackbar = () => {
-    setOpenSnackbar(false);
-  };
 
   const handleEmailChange = (event) => {
     const newValue = event.target.value;
@@ -139,19 +104,7 @@ export default function SignIn() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity="error"
-          sx={{ width: "100%" }}
-        >
-          {registrationError}
-        </Alert>
-      </Snackbar>
+      <h1 align="center">Sentiment Analyzer</h1>
 
       <Container component="main" maxWidth="xs">
         <CssBaseline />
@@ -167,7 +120,7 @@ export default function SignIn() {
             <LockOutlinedIcon />
           </Avatar>
           <Typography component="h1" variant="h5">
-           Sign in {process.env.REACT_APP_API_LINK} {process.env.REACT_APP_NAME }
+           Sign in
           </Typography>
           <Box
             component="form"
@@ -175,7 +128,6 @@ export default function SignIn() {
             noValidate
             sx={{ mt: 1 }}
           >
-             {console.log(process.env) }
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField

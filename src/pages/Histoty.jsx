@@ -1,13 +1,12 @@
-import React, { Component } from "react";
+import React from "react";
 
 import { useState, useEffect } from "react";
 import "./homePage.css";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Paper, Divider, Grid } from "@mui/material";
 
 import axios from "axios";
 import {
-  VictoryPie,
   VictoryChart,
   VictoryBar,
   VictoryAxis,
@@ -19,12 +18,10 @@ import cognitoUserPool from "../cognitoUserPool";
 export default function History() {
   const navigate = useNavigate();
   const [count, setCount] = useState(0);
-  const [sentimentData, setSentimentData] = useState([]);
     const [historyData, setHistoryData] = useState({});
     
     const [message, setMessage] = useState("Loading...");
 
-  let sentiment_data = null;
   const email = localStorage.getItem("email");
 
   function handleBack() {
@@ -32,17 +29,15 @@ export default function History() {
   }
 
   function handleLogOut() {
-      console.log("Logout clicked");
       const user = cognitoUserPool.getCurrentUser();
         user.signOut();
         window.location.href='/';
   }
   useEffect(() => {
     const data_json = { email: localStorage.getItem("email") };
-    console.log(data_json);
     axios({
       // Endpoint to fetch organizer profile
-      url: `https://oj3a8h1roh.execute-api.us-east-1.amazonaws.com/Test/sentiment_db_test`,
+      url: process.env.REACT_APP_API_LINK+"/sentiment-read-dynamo1",
       method: "POST",
       data: data_json,
     })
@@ -50,33 +45,14 @@ export default function History() {
       .then((res) => {
         setCount(res["Count"]);
 
-        console.log(res);
-        sentiment_data = [
-          {
-            x: "Positive",
-            y: res["data"]["body"]["Items"][0]["PositiveScore"]["S"],
-          },
-          {
-            x: "Negative",
-            y: res["data"]["body"]["Items"][0]["NegativeScore"]["S"],
-          },
-          {
-            x: "Neutral",
-            y: res["data"]["body"]["Items"][0]["NeutralScore"]["S"],
-          },
-          { x: "Mix", y: res["data"]["body"]["Items"][0]["MixedScore"]["S"] },
-        ];
-        console.log(sentiment_data);
-        setSentimentData(sentiment_data);
+        
           setHistoryData(res);
-          if (count == 0) {
+          if (count === 0) {
               setMessage("No History found");
           }
           else {
               setMessage("");
           }
-        // console.log(res);
-        console.log(sentimentData);
       })
 
       // Catch errors if any

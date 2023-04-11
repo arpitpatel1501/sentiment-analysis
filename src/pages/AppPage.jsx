@@ -1,18 +1,16 @@
-import React, { Component } from "react";
+import React from "react";
 
 import { useState } from "react";
 import "./homePage.css";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  VictoryPie,
   VictoryChart,
   VictoryBar,
   VictoryAxis,
   VictoryTheme,
   VictoryLabel,
 } from "victory";
-import { height } from "@mui/system";
 import cognitoUserPool from "../cognitoUserPool";
 
 // let sentiment_data = [
@@ -28,23 +26,19 @@ export default function AppPage() {
   
   const navigate = useNavigate();
   const [sentimentText, setSentimentText] = useState("");
-  const [sentimentScore, setSentimentScore] = useState("");
+  // const [sentimentScore, setSentimentScore] = useState("");
   const [showSentiment, setShowSentiment] = useState(false);
   const [value, setValue] = useState("");
-  const [message, setMessage] = useState("");
 
   const email = localStorage.getItem("email");
 
   const handleAnalyzeClick = () => {
 
     // Get the user input
-    const text = document.getElementById("input-text").value;
-    // const data_json = { body: value };
+    // const text = document.getElementById("input-text").value;
     const data_json = { email: email, text: value };
-    setMessage("Loading...");
-    console.log(data_json);
+    // setMessage("Loading...");
 
-    let headers = new Headers();
 
     // headers.append('Content-Type', 'application/json');
     // headers.append('Accept', 'application/json');
@@ -56,7 +50,7 @@ export default function AppPage() {
     axios({
       // Endpoint to send files
       // url: "https://zj2de273p2.execute-api.us-east-1.amazonaws.com/Prod/sentiment_function",
-      url: "https://zj2de273p2.execute-api.us-east-1.amazonaws.com/Prod/sentiment_function",
+      url: process.env.REACT_APP_API_LINK+"/sentiment-analysis1",
       method: "POST",
       data: data_json,
     })
@@ -64,7 +58,6 @@ export default function AppPage() {
       .then((res) => {
         console.log("res: ", res);
         const SentimentScore = res.data.SentimentScore;
-        console.log("data: ", sentiment_data);
         sentiment_data = [
           { x: "Positive", y: parseFloat (SentimentScore.Positive.toFixed(2)) },
           { x: "Negative", y: parseFloat (SentimentScore.Negative.toFixed(2)) },
@@ -73,13 +66,9 @@ export default function AppPage() {
         ];
         const sentiment = res.data.Sentiment;
         setSentimentText(sentiment);
-        setSentimentScore(res.data.SentimentScore.sentiment);
+        // setSentimentScore(res.data.SentimentScore.sentiment);
         setShowSentiment(true);
 
-        console.log("sentimentText: ", sentimentText);
-        console.log("sentimentScore: ", sentimentScore);
-
-        console.log("data: ", sentiment_data);
       })
       .catch((err) => {
         console.log("Something went wrong");
@@ -87,9 +76,9 @@ export default function AppPage() {
       });
   };
 
-  function uploadImage() {
-    console.log("uploadImage");
-  }
+    // function uploadImage() {
+    //   console.log("uploadImage");
+    // }
 
   function handleHistory() {
     navigate("/history");
@@ -134,7 +123,7 @@ export default function AppPage() {
               Logout
         </button>
       </div>
-      <h1 align="center">Sentiment Analysis Dashboard</h1>
+      <h1 align="center">Sentiment Analyzer Dashboard</h1>
       <div className="div_container">
         <div className="component">
           <label htmlFor="input-text">Enter Text:</label>
