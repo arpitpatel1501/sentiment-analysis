@@ -37,7 +37,7 @@ export default function History() {
     const data_json = { email: localStorage.getItem("email") };
     axios({
       // Endpoint to fetch organizer profile
-      url: process.env.REACT_APP_API_LINK+"sentiment-read-dynamo1",
+      url: process.env.REACT_APP_API_LINK+"sentiment-read-dynamo",
       method: "POST",
       data: data_json,
     })

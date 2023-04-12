@@ -51,7 +51,7 @@ export default function AppPage() {
     axios({
       // Endpoint to send files
       // url: "https://zj2de273p2.execute-api.us-east-1.amazonaws.com/Prod/sentiment_function",
-      url: process.env.REACT_APP_API_LINK+"sentiment-analysis1",
+      url: process.env.REACT_APP_API_LINK+"sentiment-analysis",
       method: "POST",
       data: data_json,
     })
