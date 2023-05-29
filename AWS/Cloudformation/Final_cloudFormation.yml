@@ -1,0 +1,466 @@
+# General Parameters
+Parameters:
+  # Cognito user pool prefix
+  Prefix:
+    Type: String
+    Default: sentiment-analysis
+
+  LambdaFunctionAnalyseName:
+    Type: String
+    Default: sentiment-analysis
+
+  LambdaFunctionDBName:
+    Type: String
+    Default: sentiment-read-dynamo
+
+  APIName:
+    Type: String
+    Default: sentiment-api
+  
+  DynamoTableName:
+    Type: String
+    Default: 'sentiment-db'
+
+  EnvironmentName:
+    Type: String
+    Default: Prod
+
+  InstanceTypeParameter:
+    Description: Select instance type # Optional
+    Type: String
+    Default: t2.small
+    AllowedValues: # User will get dropdown to select the below options
+        - t2.micro
+        - m1.small
+        - m1.large
+        - t2.small
+    Description: Enter t2.micro, m1.small or m1.large. Default is t2.micro. # Optional
+
+  KeyName:
+    Default: sentimentRSA
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+  
+  GitHubLink:
+    Default: "https://github.com/arpitpatel1501/sentiment-analysis.git"
+    Type: String
+
+# All the resources stack
+Resources:
+
+  # Cognito
+  UserPool:
+    Type: 'AWS::Cognito::UserPool'
+    Properties:
+      UsernameConfiguration:
+        CaseSensitive: true
+      AutoVerifiedAttributes:
+        - email
+      UserPoolName: !Sub ${Prefix}-UserPool
+      UsernameAttributes: 
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_LINK
+        EmailMessageByLink: 'Please click the link below to verify your email address. {##Verify Email##}'
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      AccessTokenValidity: 1
+      TokenValidityUnits: days
+      UserPoolId: !Ref UserPool
+      TokenValidityUnits:
+        AccessToken: days
+      SupportedIdentityProviders:
+        - COGNITO
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref Prefix
+      UserPoolId: !Ref UserPool
+  
+  Cognitoauthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      IdentitySource: method.request.header.authorization
+      Name: CognitoAuthorizer
+      ProviderARNs:
+        - Fn::GetAtt:
+            - UserPool
+            - Arn
+      RestApiId: !Ref APIGateWayRestApi
+      Type: COGNITO_USER_POOLS
+      
+  # Dynamo DB
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoTableName
+      AttributeDefinitions:
+        -
+          AttributeName: "sentimentId"
+          AttributeType: "S"
+        -
+          AttributeName: "email"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "sentimentId"
+          KeyType: "HASH"
+        -
+          AttributeName: "email"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  # APIGateway
+  APIGateWayRestApi:
+    Type: "AWS::ApiGateway::RestApi"
+    Properties:
+      Name:
+        Ref: APIName
+        
+  APIGatewayResourceAnalyse:
+    Type: "AWS::ApiGateway::Resource"
+    Properties:
+      RestApiId: !Ref APIGateWayRestApi
+      ParentId: !GetAtt
+        - APIGateWayRestApi
+        - RootResourceId
+      PathPart:
+        Ref: LambdaFunctionAnalyseName
+    DependsOn:
+      - APIGateWayRestApi
+
+  APIGatewayMethodAnalyse:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      RestApiId: !Ref APIGateWayRestApi
+      ResourceId: !Ref APIGatewayResourceAnalyse
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref authorizer
+      MethodResponses:
+        - StatusCode: 200
+      Integration:
+        Type: AWS
+        IntegrationResponses:
+          - StatusCode: 200
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - >-
+            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFuncNameArn}/invocations
+          - LambdaFuncNameArn: !GetAtt LambdaFunctionAnalyse.Arn
+    DependsOn:
+      - APIGatewayResourceAnalyse
+
+  APIGatewayResourceDB:
+    Type: "AWS::ApiGateway::Resource"
+    Properties:
+      RestApiId: !Ref APIGateWayRestApi
+      ParentId: !GetAtt
+        - APIGateWayRestApi
+        - RootResourceId
+      PathPart:
+        Ref: LambdaFunctionDBName
+    DependsOn:
+      - APIGateWayRestApi
+      
+  APIGatewayMethodDB:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      RestApiId: !Ref APIGateWayRestApi
+      ResourceId: !Ref APIGatewayResourceDB
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref authorizer
+      MethodResponses:
+        - StatusCode: 200
+      Integration:
+        Type: AWS
+        IntegrationResponses:
+          - StatusCode: 200
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - >-
+            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFuncNameArn}/invocations
+          - LambdaFuncNameArn: !GetAtt LambdaFunctionDB.Arn
+    DependsOn:
+      - APIGatewayResourceDB
+
+  APIGatewayDeployment:
+    Type: "AWS::ApiGateway::Deployment"
+    Properties:
+      RestApiId: !Ref APIGateWayRestApi
+      StageName:
+        Ref: EnvironmentName
+    DependsOn:
+      - APIGatewayMethodAnalyse
+
+  # Lambda Functions
+  LambdaLayerAnalyse:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleArchitectures:
+        - x86_64
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket: sentiment-nltk-layer
+        S3Key: python.zip
+      Description: create nltk from cloud formation
+      LayerName: nltk_formation
+
+  LambdaFunctionAnalyse:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Runtime: "python3.8"
+      Role: "arn:aws:iam::738893860032:role/LabRole"
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import uuid
+          import os
+
+          import nltk
+          nltk.data.path.append("/tmp/nltk_data/")
+          nltk.download('punkt', download_dir="/tmp/nltk_data/")
+          nltk.download('stopwords', download_dir="/tmp/nltk_data/")
+          from nltk.corpus import stopwords
+          from nltk.stem import PorterStemmer
+          from nltk.tokenize import word_tokenize
+
+          dyn_client = boto3.client('dynamodb')
+          TABLE_NAME = os.environ['DYNAMO_DB_NAME']
+
+          def preprocess_text(text):
+              # Tokenize the text
+              tokens = word_tokenize(text.lower())
+
+              print("tokens:", tokens)
+              # Remove stop words
+              stop_words = set(stopwords.words('english'))
+              filtered_tokens = [token for token in tokens if token not in stop_words]
+
+              # Stem the words
+              stemmer = PorterStemmer()
+              stemmed_tokens = [stemmer.stem(token) for token in filtered_tokens]
+
+              # Join the tokens back into a single string
+              preprocessed_text = ' '.join(stemmed_tokens)
+              
+              print("preprocessed_text:", preprocessed_text)
+              return preprocessed_text
+              
+          comprehend = boto3.client('comprehend')
+
+          def get_sentiment(text):
+              response = comprehend.detect_sentiment(Text=text, LanguageCode='en')
+              print(response)
+              # sentiment = response['Sentiment']
+              return response
+
+          def lambda_handler(event, context):
+              # TODO implement
+              email = event["email"]
+              text = event["text"]
+              
+              # Preprocess the text
+              preprocessed_text = preprocess_text(text)
+              
+              # Get the sentiment
+              sentiment_response = get_sentiment(preprocessed_text)
+              
+              ###############################################
+              # Store data in dynamo db
+              dynamoData = {}
+              dynamoData["sentimentId"]= {'S': str(uuid.uuid4())}
+              dynamoData["email"]= {'S': email}
+
+              dynamoData['input'] = {'S':text}
+              dynamoData['sentiment'] = {'S':sentiment_response['Sentiment']}
+              dynamoData['PositiveScore'] = {'S':str(round(sentiment_response['SentimentScore']['Positive'], 2))}
+              dynamoData['NegativeScore'] = {'S':str(round(sentiment_response['SentimentScore']['Negative'], 2))}
+              dynamoData['NeutralScore'] = {'S':str(round(sentiment_response['SentimentScore']['Neutral'], 2))}
+              dynamoData['MixedScore'] = {'S':str(round(sentiment_response['SentimentScore']['Mixed'], 2))}
+              
+              response = dyn_client.put_item(TableName=TABLE_NAME, Item=dynamoData)
+            
+              response = {
+                  'Sentiment': sentiment_response['Sentiment'],
+                  'SentimentScore': sentiment_response['SentimentScore']
+              }
+              
+              # TODO implement
+              return response
+
+      FunctionName:
+        Ref: LambdaFunctionAnalyseName
+      Handler: index.lambda_handler
+      Layers:
+        - !Ref LambdaLayerAnalyse
+      Timeout: 300
+      Description: Invoke a function during stack creation.
+      TracingConfig:
+        Mode: Active
+      Environment:
+        Variables:
+          DYNAMO_DB_NAME: !Ref DynamoTableName
+    DependsOn:
+      - APIGateWayRestApi
+
+  LambdaFunctionDB:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Runtime: "python3.8"
+      Role: "arn:aws:iam::738893860032:role/LabRole"
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+          dyn_client = boto3.client('dynamodb')
+
+
+          def getHistoryFromDatabase(email):
+              TABLE_NAME = os.environ['DYNAMO_DB_NAME']
+              history = dyn_client.scan(TableName=TABLE_NAME, FilterExpression='email = :email',
+                                      ExpressionAttributeValues={
+                                          ':email': {'S': email}
+                                      })
+
+              return history
+
+          def lambda_handler(event, context):
+              # TODO implement
+              email = event["email"]
+              history = getHistoryFromDatabase(email)
+              return {
+                  'statusCode': 200,
+                  'body': history
+              }     
+
+      FunctionName:
+        Ref: LambdaFunctionDBName
+      Handler: index.lambda_handler
+      Timeout: 300
+      Description: Invoke a function during stack creation.
+      TracingConfig:
+        Mode: Active
+      Environment:
+        Variables:
+          DYNAMO_DB_NAME: !Ref DynamoTableName
+    DependsOn:
+      - APIGateWayRestApi
+
+  # Lambda Function API permission
+  APIGatewayPermissionAnalyse:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt LambdaFunctionAnalyse.Arn
+      Principal: apigateway.amazonaws.com
+    DependsOn:
+      - APIGatewayDeployment
+
+  APIGatewayPermissionDB:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt LambdaFunctionDB.Arn
+      Principal: apigateway.amazonaws.com
+    DependsOn:
+      - APIGatewayDeployment
+       
+  # Security Group EC2
+  InstanceSSHSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties: 
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+  
+  InstanceHttpSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties: 
+      GroupDescription: Enable Http access via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  InstancePortSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties: 
+      GroupDescription: Enable Https access via port 3000
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+
+  # EC2: for deploying frontend REACT through Docker
+  Ec2Instance: 
+    Type: AWS::EC2::Instance # Type
+    Properties:
+      InstanceType: !Ref InstanceTypeParameter
+      ImageId: ami-06e46074ae430fba6
+      KeyName: !Ref 'KeyName'
+      SecurityGroups: 
+        - !Ref InstanceSSHSecurityGroup
+        - !Ref InstanceHttpSecurityGroup
+        - !Ref InstancePortSecurityGroup
+
+      # Executing Commands when EC2 instance 
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            sudo su
+            yum install git -y
+            git clone ${GitHubLink}
+            cd sentiment-analysis/
+            rm .env
+            echo "REACT_APP_API_LINK=\"https://${APIGateWayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}/\"" > .env
+            echo "REACT_APP_CLIENT_ID=${UserPoolClient}" >> .env
+            echo "REACT_APP_USERPOOL_ID=${UserPool}" >> .env
+            yum install nodejs -y
+            yum install npm -y
+            npm install
+            npm run start&
+      Tags:
+        - Key: Name
+          Value: sentiment-ec2-cloudformation
+ 
+# Outputs
+Outputs:
+  WebUri:
+    Description: This is running server uri
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt
+          - Ec2Instance
+          - PublicDnsName
+        - ':3000'
+
+  CognitoUserPoolID:
+    Value: !Ref UserPool
+    Description: The UserPool ID
+
+  CognitoAppClientID:
+    Value: !Ref UserPoolClient
+    Description: The app client
